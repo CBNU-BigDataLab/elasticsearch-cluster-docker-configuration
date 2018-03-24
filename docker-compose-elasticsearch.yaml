@@ -1,0 +1,79 @@
+version: '2'
+services:
+
+# ELAISTCSEARCH CLUSTER
+  elasticsearch1:
+    build:
+      context: elasticsearch1
+    container_name: elasticsearch1
+    environment:
+      - cluster.name=Elasticsearch
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - esnet
+  elasticsearch2:
+    build:
+      context: elasticsearch2
+    container_name: elasticsearch2
+    environment:
+      - cluster.name=Elasticsearch
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "discovery.zen.ping.unicast.hosts=elasticsearch1"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata2:/usr/share/elasticsearch/data
+    networks:
+      - esnet
+
+# KIBANA CONFIGURATION
+  kibana:
+    build:
+      context: kibana/
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch1:9200
+    volumes:
+      - ./kibana/config/:/usr/share/kibana/config
+    ports:
+      - "5601:5601"
+    networks:
+      - esnet
+    depends_on:
+      - elasticsearch1
+      - elasticsearch2
+
+
+  # Cerebro Elasticsearch client
+  cerebro:
+#    build: cerebro/
+    # Instead of building the image locally,  can use:
+    image: yannart/cerebro:latest
+    ports:
+      - "9000:9000"
+    networks:
+      - esnet
+    depends_on:
+      - elasticsearch1
+      - elasticsearch2
+
+volumes:
+  esdata1:
+    driver: local
+  esdata2:
+    driver: local
+
+networks:
+  esnet:
